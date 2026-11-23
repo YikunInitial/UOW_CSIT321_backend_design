@@ -1,0 +1,38 @@
+{
+  "products": [
+    {
+      "material_no": "SYN-001",
+      "thickness": 1.2,
+      "width": 1000,
+      "outer_diameter": 1600,
+      "gross_weight_tonne": 20.0,
+      "net_weight_tonne": 19.8,
+      "destination": "Sydney"
+    },
+    {
+      "material_no": "SYN-002",
+      "thickness": 1.1,
+      "width": 1050,
+      "outer_diameter": 1500,
+      "gross_weight_tonne": 18.0,
+      "net_weight_tonne": 17.8,
+      "destination": "Melbourne"
+    },
+    {
+      "material_no": "SYN-003",
+      "thickness": 1.0,
+      "width": 980,
+      "outer_diameter": 1450,
+      "gross_weight_tonne": 17.0,
+      "net_weight_tonne": 16.8,
+      "destination": "Brisbane"
+    }
+  ],
+  "execution_mode": "multi_agent_council",
+  "scenario_id": "student_quickstart",
+  "system_variant": "backend_teaching_release",
+  "time_budget_seconds": 6,
+  "random_seed": 42,
+  "generate_visuals": false,
+  "semantic_planning_enabled": false
+}

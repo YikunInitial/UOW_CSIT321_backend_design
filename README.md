@@ -142,51 +142,125 @@ start_backend_api.ps1           Windows API launcher
 start_backend_worker.ps1        Windows worker launcher
 ```
 
-## 9. Local setup
+## 9. Five-minute quick start
 
-From PowerShell:
+### Prerequisites
+
+- Git
+- Python 3.11, 3.12, or 3.13 (Python 3.11 is recommended for the broadest package compatibility)
+- at least 2 GB of free disk space
+- PowerShell on Windows, or a POSIX shell on macOS/Linux
+
+Ollama is **not required** for the first run. The supplied request disables semantic planning and exercises the deterministic Multi-Agent Council, optimisation, validation, persistence, and audit path.
+
+### 9.1 Clone the private repository
+
+Your GitHub account must first be invited to this private repository.
+
+```text
+git clone https://github.com/YikunInitial/UOW_CSIT321_backend_design.git
+cd UOW_CSIT321_backend_design
+```
+
+### 9.2 Install dependencies
+
+Windows PowerShell:
 
 ```powershell
-py -3.13 -m venv .venv
+py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-The backend reads environment variables from the process; it does not silently load a `.env` file. `.env.example` is a configuration reference. Set only the values needed in the terminal or use a supervised deployment environment. Do not commit production secrets.
+macOS/Linux:
 
-Start the API:
-
-```powershell
-.\start_backend_api.ps1 -Port 8080
+```bash
+python3 -m venv .venv
+./.venv/bin/python -m pip install --upgrade pip
+./.venv/bin/python -m pip install -r requirements.txt
 ```
 
-The development configuration uses an embedded worker by default. To demonstrate production-style separation, start the API and worker in separate terminals with the same data root.
+The initial installation includes the local RAG stack and can take several minutes. It installs Python packages but does not automatically download an Ollama model.
 
-API terminal:
+The backend reads environment variables from the process; it does not silently load a `.env` file. `.env.example` is a reference for deployment configuration. Do not commit a real `.env` file or production secrets.
+
+### 9.3 Start the development API
+
+Windows PowerShell:
 
 ```powershell
-$env:STEEL_API_EMBEDDED_WORKER = "false"
 .\start_backend_api.ps1 -Port 8080 -DataRoot runtime/api
 ```
 
-Worker terminal:
+If local PowerShell policy blocks scripts, use:
 
 ```powershell
-.\start_backend_worker.ps1 -DataRoot runtime/api
+powershell -ExecutionPolicy Bypass -File .\start_backend_api.ps1 -Port 8080 -DataRoot runtime/api
 ```
 
-Health endpoints:
+macOS/Linux:
+
+```bash
+export STEEL_ENV=development
+export STEEL_API_RUN_ROOT="$PWD/runtime/api"
+export STEEL_API_STATE_DATABASE="$PWD/runtime/api/state.db"
+mkdir -p "$STEEL_API_RUN_ROOT"
+./.venv/bin/python -m uvicorn backend_api:app --host 127.0.0.1 --port 8080
+```
+
+Wait until Uvicorn reports that it is running. The development configuration uses an embedded worker, so a separate worker terminal is not needed for this quick start.
+
+### 9.4 Submit the first Multi-Agent planning job
+
+Open a second terminal in the repository directory.
+
+Windows:
+
+```powershell
+.\.venv\Scripts\python.exe examples\quickstart_client.py
+```
+
+macOS/Linux:
+
+```bash
+./.venv/bin/python examples/quickstart_client.py
+```
+
+The client uses only the Python standard library. It checks liveness, submits [examples/planning_request.json](examples/planning_request.json), polls the durable job, and prints the resulting plan identity. Expected output is similar to:
+
+```text
+API live: {...}
+Queued job: job_...
+Job status: queued
+Job status: completed
+Plan ID: plan_...
+Plan version: 1
+Plan status: pending_approval
+Quick start completed successfully.
+```
+
+`pending_approval` is intentional: technical validation does not grant business approval.
+
+### 9.5 Verify the service manually
+
+Open these endpoints in a browser or API client:
 
 - `GET http://127.0.0.1:8080/health/live`
 - `GET http://127.0.0.1:8080/health/ready`
 - `GET http://127.0.0.1:8080/metrics`
 - `GET http://127.0.0.1:8080/openapi.json`
 
-See [docs/BACKEND_API.md](docs/BACKEND_API.md) for the request lifecycle and endpoint details.
+See [docs/BACKEND_API.md](docs/BACKEND_API.md) for the full request lifecycle, approval, artifacts, dynamic events, and endpoint contracts.
 
-## 10. Optional local LLM
+## 10. Runtime modes
 
-The default provider is Ollama with the small `qwen2.5:0.5b` model. The deterministic planning and safety path remains operational if the model is unavailable.
+### Core backend without Ollama
+
+Use `semantic_planning_enabled: false`, as shown in the supplied quick-start request. The Council, optimisation, Validator, SQLite state, audit evidence, BDI, and dynamic-replanning services do not require an online LLM.
+
+### Optional local LLM and RAG
+
+The default provider is Ollama with the small `qwen2.5:0.5b` model. Do not use a 7B model on a memory-constrained student computer. Start Ollama and configure the terminal before starting the API:
 
 ```powershell
 ollama serve
@@ -196,9 +270,55 @@ $env:LLM_MODEL = "qwen2.5:0.5b"
 $env:LLM_BASE_URL = "http://127.0.0.1:11434"
 ```
 
-An organisation can connect another local or private model through the provider abstraction described in [docs/LLM_PROVIDER_INTEGRATION.md](docs/LLM_PROVIDER_INTEGRATION.md). Model output remains advisory and schema-validated.
+Then set `semantic_planning_enabled` to `true` in a copied request. The first RAG invocation may download a sentence-transformer embedding model. If the model endpoint is unavailable or returns an invalid strategy, the run records the failure and uses the deterministic strategy fallback. Safety and validation remain authoritative.
 
-## 11. Tests
+An organisation can connect another local or private model through the provider abstraction described in [docs/LLM_PROVIDER_INTEGRATION.md](docs/LLM_PROVIDER_INTEGRATION.md).
+
+### Production-style API and worker separation
+
+For development, the embedded worker is convenient. For a production-style exercise, use two terminals with the same data root.
+
+Windows API terminal:
+
+```powershell
+$env:STEEL_API_EMBEDDED_WORKER = "false"
+.\start_backend_api.ps1 -Port 8080 -DataRoot runtime/api
+```
+
+Windows worker terminal:
+
+```powershell
+.\start_backend_worker.ps1 -DataRoot runtime/api
+```
+
+macOS/Linux API terminal:
+
+```bash
+export STEEL_API_EMBEDDED_WORKER=false
+export STEEL_API_RUN_ROOT="$PWD/runtime/api"
+export STEEL_API_STATE_DATABASE="$PWD/runtime/api/state.db"
+mkdir -p "$STEEL_API_RUN_ROOT"
+./.venv/bin/python -m uvicorn backend_api:app --host 127.0.0.1 --port 8080
+```
+
+macOS/Linux worker terminal, with the same environment variables:
+
+```bash
+./.venv/bin/python worker.py --database "$STEEL_API_STATE_DATABASE" --lease-seconds 90 --poll-seconds 1
+```
+
+## 11. Troubleshooting
+
+- **`Python environment not found`**: create `.venv` in the repository root and install `requirements.txt`.
+- **Port 8080 is already in use**: stop the other process or start Uvicorn on another port and set `STEEL_API_BASE_URL` for `quickstart_client.py`.
+- **`/health/live` works but `/health/ready` does not**: inspect the returned storage, database, queue, and worker details; also confirm at least 2 GB of free disk space.
+- **A job remains queued**: the embedded worker may be disabled. Start `worker.py` with the same database path as the API.
+- **Ollama connection fails**: keep `semantic_planning_enabled` false, or verify `ollama serve`, the model name, and port 11434.
+- **The first RAG request is slow**: local embeddings are loaded and indexed on first use, then cached in the process.
+- **HTTP 401**: when `STEEL_API_KEY` is set on the server, set the same environment variable for `quickstart_client.py` so it sends `X-API-Key`.
+- **HTTP 422**: compare the request with [examples/planning_request.json](examples/planning_request.json). Critical weight, width, diameter/length, destination, and material identity cannot be invented by the LLM.
+
+## 12. Tests
 
 Run the backend suite:
 
@@ -214,7 +334,7 @@ Useful focused tests:
 .\.venv\Scripts\python.exe -m pytest tests/test_robust_replanning_recovery.py -q
 ```
 
-## 12. Student work boundaries
+## 13. Student work boundaries
 
 Students may extend agent observability, add tested strategies, improve event prioritisation, develop new validation evidence, or consume the documented API from a separate capstone frontend. Changes should preserve these invariants:
 
@@ -227,7 +347,7 @@ Students may extend agent observability, add tested strategies, improve event pr
 
 Use feature branches and pull requests. Add or update tests for every behavioural change, and document any API contract change.
 
-## 13. Further documentation
+## 14. Further documentation
 
 - [Backend API](docs/BACKEND_API.md)
 - [Multi-Agent Council v2](docs/multi_agent_council_v2.md)
