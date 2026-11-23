@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools==83.0.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uow-csit321-backend-design"
+version = "1.0.0"
+description = "Backend multi-agent design for agentic steel batching and wagon loading"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dynamic = ["dependencies"]
+
+[project.scripts]
+steel-loading-worker = "worker:main"
+steel-loading-operations = "operations_cli:main"
+
+[tool.setuptools]
+packages = ["Agents", "Agents.core", "Agents.wrappers"]
+py-modules = ["backend_api", "worker", "operations_cli"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "--strict-markers --basetemp=runtime/test_tmp/pytest"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+extend-exclude = ["runtime", "outputs", "VectorDB"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"Agents/provider_semantic_planner.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+exclude = "(runtime|outputs|VectorDB)/"
+
